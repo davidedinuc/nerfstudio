@@ -191,13 +191,52 @@ class Optimizers:
             lr = scheduler.get_last_lr()[0]
             writer.put_scalar(name=f"learning_rate/{param_group_name}", scalar=lr, step=step)
 
-    def load_optimizers(self, loaded_state: Dict[str, Any]) -> None:
+    def load_optimizers(self, loaded_state_: Dict[str, Any]) -> None:
         """Helper to load the optimizer state from previous checkpoint
 
         Args:
             loaded_state: the state from the previous checkpoint
         """
+        loaded_state = loaded_state_["optimizers"]
+        num_means = loaded_state_['pipeline']['_model.means'].shape[0]
+        mask = loaded_state_["seq_gs"].fg_mask.int()
         for k, v in loaded_state.items():
+            #current_shape = v['state'][0]['exp_avg'].shape
+            #if len(current_shape) == 2:
+            #    mask = loaded_state_["seq_gs"].fg_mask.int()[..., None] 
+            #    # Create a new tensor with the first dimension of target_shape and the remaining dimensions of current_shape
+            #    v['state'][0]['exp_avg'] = (torch.zeros((loaded_state_['pipeline']['_model.means'].shape[0],) + current_shape[1:]) + 1e-2) * mask
+            #    v['state'][0]['exp_avg_sq'] = (torch.zeros((loaded_state_['pipeline']['_model.means'].shape[0],) + current_shape[1:]) + 1e-10) * mask
+            #elif len(current_shape) > 2:
+            #    mask = loaded_state_["seq_gs"].fg_mask.int()[..., None, None]  # Shape: [250000, 1, 1]
+            #    mask = mask.expand(-1, current_shape[1], current_shape[2])  # Expands to [250000, 15, 3]
+            #    v['state'][0]['exp_avg'] = (torch.zeros((loaded_state_['pipeline']['_model.means'].shape[0],) + current_shape[1:]) + 1e-2) * mask
+            #    v['state'][0]['exp_avg_sq'] = (torch.zeros((loaded_state_['pipeline']['_model.means'].shape[0],) + current_shape[1:]) + 1e-10) * mask
+            #else:
+            #    # Handle the case where current_shape has only one dimension
+            #    v['state'][0]['exp_avg'] = (torch.zeros(loaded_state_['pipeline']['_model.means'].shape[0]) + 1e-2) * loaded_state_["seq_gs"].fg_mask.int()[...,None]
+            #    v['state'][0]['exp_avg_sq'] = (torch.zeros(loaded_state_['pipeline']['_model.means'].shape[0]) + 1e-10) * loaded_state_["seq_gs"].fg_mask.int()[...,None]
+
+            current_shape = v['state'][0]['shape']
+            target_shape = (num_means,) + current_shape[1:]
+
+            # Expand mask to match target shape dynamically
+            mask_expanded = mask.view(-1, *[1] * (len(target_shape) - 1)).expand(target_shape)
+
+            #exp_avg = torch.randn(target_shape) * 1e-1  # Small noise around zero
+            #exp_avg_sq = torch.abs(torch.randn(target_shape) * 1e-3) + 1e-8  # Positive small values
+
+            exp_avg = torch.zeros(target_shape)
+            exp_avg_sq = torch.zeros(target_shape)
+
+            # Apply mask
+            for state in v['state'].keys():
+                v['state'][state]['exp_avg'] = exp_avg #* mask_expanded
+                v['state'][state]['exp_avg_sq'] = exp_avg_sq #* mask_expanded
+                v['state'][state]['step'] *= 0
+                #if 'lr' in v['param_groups'][state] and 'initial_lr' in v['param_groups'][state]:
+                #    v['param_groups'][state]['lr'] = v['param_groups'][state]['initial_lr']
+
             self.optimizers[k].load_state_dict(v)
 
     def load_schedulers(self, loaded_state: Dict[str, Any]) -> None:

@@ -154,6 +154,7 @@ class Trainer:
             grad_scaler=self.grad_scaler,
         )
         self.optimizers = self.setup_optimizers()
+        self.config.max_num_iterations = 10000 ########################################################################################################################################################################
 
         # set up viewer if enabled
         viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
@@ -234,6 +235,8 @@ class Trainer:
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.max_num_iterations
+            
+            print('num iterations: ', num_iterations)
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
                 while self.training_state == "paused":
@@ -388,7 +391,7 @@ class Trainer:
             avg_over_steps=True,
         )
 
-    def _load_checkpoint(self) -> None:
+    def _load_checkpoint(self, uco_data=None) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
         load_dir = self.config.load_dir
         load_checkpoint = self.config.load_checkpoint
@@ -409,13 +412,36 @@ class Trainer:
                 self.optimizers.load_schedulers(loaded_state["schedulers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
             CONSOLE.print(f"Done loading Nerfstudio checkpoint from {load_path}")
+        elif uco_data is not None:
+            seq_gs = uco_data
+
+            loaded_state = torch.load(load_checkpoint, map_location="cpu")
+
+            loaded_state['pipeline']['_model.means'] = seq_gs.means
+            loaded_state['pipeline']['_model.scales'] = seq_gs.scales
+            loaded_state['pipeline']['_model.quats'] = seq_gs.quats
+            loaded_state['pipeline']['_model.features_rest'] = seq_gs.shN.to(torch.float32)
+            loaded_state['pipeline']['_model.features_dc'] = seq_gs.sh0
+            loaded_state['pipeline']['_model.opacities'] = seq_gs.opacities[...,None]
+            loaded_state["step"] = 0
+            self._start_step = loaded_state["step"] + 1
+            loaded_state['seq_gs'] = seq_gs
+            
+            # TODO check this part 
+            self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
+            self.optimizers.load_optimizers(loaded_state)
+            #if "schedulers" in loaded_state and self.config.load_scheduler:
+            #    self.optimizers.load_schedulers(loaded_state["schedulers"])
+            self.grad_scaler.load_state_dict(loaded_state["scalers"])
+            return
         elif load_checkpoint is not None:
             assert load_checkpoint.exists(), f"Checkpoint {load_checkpoint} does not exist"
             loaded_state = torch.load(load_checkpoint, map_location="cpu")
             self._start_step = loaded_state["step"] + 1
+
             # load the checkpoints for pipeline, optimizers, and gradient scalar
             self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
-            self.optimizers.load_optimizers(loaded_state["optimizers"])
+            self.optimizers.load_optimizers(loaded_state)
             if "schedulers" in loaded_state and self.config.load_scheduler:
                 self.optimizers.load_schedulers(loaded_state["schedulers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])

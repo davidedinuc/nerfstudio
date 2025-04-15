@@ -44,6 +44,8 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.utils.misc import get_orig_class
 from nerfstudio.utils.rich_utils import CONSOLE
 
+from uco3d import UCO3DDataset
+from gaussctrl.uco_utils import create_transforms_from_uco, load_uco_data
 
 @dataclass
 class FullImageDatamanagerConfig(DataManagerConfig):
@@ -84,6 +86,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
+        uco_data: UCO3DDataset = None,
         **kwargs,
     ):
         self.config = config
@@ -102,27 +105,29 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         if test_mode == "inference":
             self.dataparser.downscale_factor = 1  # Avoid opening images
         self.includes_time = self.dataparser.includes_time
-
-        self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
+        #self.uco_data = uco_data
+        self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train", uco_data=uco_data) #TODO credo sia inutile, UPDATE:no lo è, carica qui
         self.train_dataset = self.create_train_dataset()
-        self.eval_dataset = self.create_eval_dataset()
+        #self.eval_dataset = self.create_eval_dataset() #TODO controlla se è utile
         if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
             CONSOLE.print(
                 "Train dataset has over 500 images, overriding cache_images to cpu",
                 style="bold yellow",
             )
             self.config.cache_images = "cpu"
-        self.cached_train, self.cached_eval = self.cache_images(self.config.cache_images)
-        self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
-        if self.config.masks_on_gpu is True:
-            self.exclude_batch_keys_from_device.remove("mask")
-        if self.config.images_on_gpu is True:
-            self.exclude_batch_keys_from_device.remove("image")
+        #if uco_data is None:
+        #    uco_data = load_uco_data()
+        self.cached_train, self.cached_eval = self.cache_images(self.config.cache_images, uco_data=uco_data['data'])
+        #self.exclude_batch_keys_from_device = self.train_dataset.exclude_batch_keys_from_device
+        #if self.config.masks_on_gpu is True:
+        #    self.exclude_batch_keys_from_device.remove("mask")
+        #if self.config.images_on_gpu is True:
+        #    self.exclude_batch_keys_from_device.remove("image")
 
         # Some logic to make sure we sample every camera in equal amounts
-        self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
-        self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
-        assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
+        #self.train_unseen_cameras = [i for i in range(len(self.train_dataset))]
+        #self.eval_unseen_cameras = [i for i in range(len(self.eval_dataset))]
+        #assert len(self.train_unseen_cameras) > 0, "No data found in dataset"
 
         super().__init__()
 
@@ -255,14 +260,15 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         """
         Pretends to be the dataloader for evaluation, it returns a list of (camera, data) tuples
         """
-        image_indices = [i for i in range(len(self.eval_dataset))]
-        data = deepcopy(self.cached_eval)
-        _cameras = deepcopy(self.eval_dataset.cameras).to(self.device)
-        cameras = []
-        for i in image_indices:
-            data[i]["image"] = data[i]["image"].to(self.device)
-            cameras.append(_cameras[i : i + 1])
-        assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
+        #image_indices = [i for i in range(len(self.eval_dataset))]
+        #data = deepcopy(self.cached_eval)
+        #_cameras = deepcopy(self.eval_dataset.cameras).to(self.device)
+        #cameras = []
+        #for i in image_indices:
+        #    data[i]["image"] = data[i]["image"].to(self.device)
+        #    cameras.append(_cameras[i : i + 1])
+        #assert len(self.eval_dataset.cameras.shape) == 1, "Assumes single batch dimension"
+        return([])
         return list(zip(cameras, data))
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:

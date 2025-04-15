@@ -52,6 +52,7 @@ class InputDataset(Dataset):
         self.scene_box = deepcopy(dataparser_outputs.scene_box)
         self.metadata = deepcopy(dataparser_outputs.metadata)
         self.cameras = deepcopy(dataparser_outputs.cameras)
+        self.masks = deepcopy(dataparser_outputs.metadata['masks'])
         self.cameras.rescale_output_resolution(scaling_factor=scale_factor)
 
     def __len__(self):
@@ -63,18 +64,19 @@ class InputDataset(Dataset):
         Args:
             image_idx: The image index in the dataset.
         """
-        image_filename = self._dataparser_outputs.image_filenames[image_idx]
-        pil_image = Image.open(image_filename)
-        if self.scale_factor != 1.0:
-            width, height = pil_image.size
-            newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
-            pil_image = pil_image.resize(newsize, resample=Image.BILINEAR)
-        image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
-        if len(image.shape) == 2:
-            image = image[:, :, None].repeat(3, axis=2)
-        assert len(image.shape) == 3
-        assert image.dtype == np.uint8
-        assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
+        #image_filename = self._dataparser_outputs.image_filenames[image_idx]
+        #pil_image = Image.open(image_filename)
+        #if self.scale_factor != 1.0:
+        #    width, height = pil_image.size
+        #    newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
+        #    pil_image = pil_image.resize(newsize, resample=Image.BILINEAR)
+        #image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
+        #if len(image.shape) == 2:
+        #    image = image[:, :, None].repeat(3, axis=2)
+        #assert len(image.shape) == 3
+        #assert image.dtype == np.uint8
+        #assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
+        image = torch.tensor(np.random.randint((256, 256, 3), dtype=np.uint8))
         return image
 
     def get_image_float32(self, image_idx: int) -> Float[Tensor, "image_height image_width num_channels"]:
@@ -83,7 +85,7 @@ class InputDataset(Dataset):
         Args:
             image_idx: The image index in the dataset.
         """
-        image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32") / 255.0)
+        image = torch.from_numpy(np.array(self.get_numpy_image(image_idx)).astype("float32") / 255.0)
         if self._dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
             assert (self._dataparser_outputs.alpha_color >= 0).all() and (
                 self._dataparser_outputs.alpha_color <= 1

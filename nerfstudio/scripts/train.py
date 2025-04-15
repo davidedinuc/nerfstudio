@@ -99,7 +99,6 @@ def train_loop(local_rank: int, world_size: int, config: TrainerConfig, global_r
     trainer.setup()
     trainer.train()
 
-
 def _distributed_worker(
     local_rank: int,
     main_func: Callable,
@@ -265,7 +264,6 @@ def entrypoint():
             description=convert_markup_to_ansi(__doc__),
         )
     )
-
 
 if __name__ == "__main__":
     entrypoint()

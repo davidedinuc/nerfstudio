@@ -40,6 +40,7 @@ from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttrib
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
 
+from uco3d import UCO3DDataset, UCO3DFrameDataBuilder, opencv_cameras_projection_from_uco3d
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
     """
@@ -247,12 +248,13 @@ class VanillaPipeline(Pipeline):
         world_size: int = 1,
         local_rank: int = 0,
         grad_scaler: Optional[GradScaler] = None,
+        uco_data: UCO3DDataset = None,
     ):
-        super().__init__()
+        super().__init__() 
         self.config = config
         self.test_mode = test_mode
         self.datamanager: DataManager = config.datamanager.setup(
-            device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
+            device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank, uco_data=uco_data
         )
         # TODO make cleaner
         seed_pts = None

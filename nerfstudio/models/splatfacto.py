@@ -44,6 +44,7 @@ from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.rich_utils import CONSOLE
 
+from nerfstudio.utils.uco_utils import load_uco_data
 
 def random_quat_tensor(N):
     """
@@ -214,6 +215,7 @@ class SplatfactoModel(Model):
         # metrics
         from torchmetrics.image import PeakSignalNoiseRatio
         from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
 
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = SSIM(data_range=1.0, size_average=True, channel=3)
@@ -489,7 +491,7 @@ class SplatfactoModel(Model):
         extra_cull_mask: a mask indicates extra gaussians to cull besides existing culling criterion
         """
         n_bef = self.num_points
-        # cull transparent ones
+        #self.config.cull_alpha_thresh = 1e-10
         culls = (torch.sigmoid(self.opacities) < self.config.cull_alpha_thresh).squeeze()
         below_alpha_count = torch.sum(culls).item()
         toobigs_count = 0

@@ -31,6 +31,7 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.data.scene_box import SceneBox
 
+from uco3d import UCO3DDataset
 
 @dataclass
 class Semantics:
@@ -69,7 +70,7 @@ class DataparserOutputs:
     """Transform applied by the dataparser."""
     dataparser_scale: float = 1.0
     """Scale applied by the dataparser."""
-
+    
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""
         return vars(self)
@@ -162,7 +163,8 @@ class DataParser:
         Returns:
             DataparserOutputs containing data for the specified dataset and split
         """
-        dataparser_outputs = self._generate_dataparser_outputs(split, **kwargs)
+
+        dataparser_outputs = self._generate_dataparser_outputs(split=split, **kwargs)
         return dataparser_outputs
 
 

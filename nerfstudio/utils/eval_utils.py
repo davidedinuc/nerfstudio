@@ -29,6 +29,7 @@ from nerfstudio.configs.method_configs import all_methods
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.rich_utils import CONSOLE
+from gaussctrl.uco_utils import create_transforms_from_uco, load_uco_data
 
 
 def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Tuple[Path, int]:
