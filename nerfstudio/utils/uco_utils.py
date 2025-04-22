@@ -1,7 +1,6 @@
 from uco3d import UCO3DDataset, UCO3DFrameDataBuilder, opencv_cameras_projection_from_uco3d
 from uco3d.dataset_utils.utils import get_dataset_root
 import os
-os.environ['UCO3D_DATASET_ROOT'] = '/home/ddinucci/Desktop/uco3d/small'
 import numpy as np
 from PIL import Image
 import torch
